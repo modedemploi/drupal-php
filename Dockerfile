@@ -1,5 +1,6 @@
 ARG BASE_IMAGE_TAG
 
+FROM surnet/alpine-wkhtmltopdf:3.17.0-0.12.6-full as wkhtmltopdf
 FROM wodby/php:${BASE_IMAGE_TAG}
 
 ENV DRUSH_LAUNCHER_FALLBACK="/home/wodby/.composer/vendor/bin/drush" \
@@ -41,6 +42,37 @@ RUN set -ex; \
     # Clean up
     su-exec wodby composer clear-cache; \
     su-exec wodby drush cc drush
+
+# Install dependencies for wkhtmltopdf
+RUN apk add --no-cache \
+    libstdc++ \
+    libx11 \
+    libxrender \
+    libxext \
+    libssl1.1 \
+    ca-certificates \
+    fontconfig \
+    freetype \
+    ttf-dejavu \
+    ttf-droid \
+    ttf-freefont \
+    ttf-liberation \
+    chromium \
+    poppler-utils \
+    # more fonts
+  && apk add --no-cache --virtual .build-deps \
+    msttcorefonts-installer \
+  # Install microsoft fonts
+  && update-ms-fonts \
+  && fc-cache -f \
+  # Clean up when done
+  && rm -rf /tmp/* \
+  && apk del .build-deps
+
+# Copy wkhtmltopdf files from docker-wkhtmltopdf image
+COPY --from=wkhtmltopdf /bin/wkhtmltopdf /bin/wkhtmltopdf
+COPY --from=wkhtmltopdf /bin/wkhtmltoimage /bin/wkhtmltoimage
+COPY --from=wkhtmltopdf /bin/libwkhtmltox* /bin/
 
 USER wodby
 
